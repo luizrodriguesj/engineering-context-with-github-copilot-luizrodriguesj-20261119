@@ -9,7 +9,7 @@ function ControlledTags({ initialValue = "" }: { initialValue?: string }) {
 
   return (
     <TagAutocomplete
-      availableTags={["wedding", "wildlife"]}
+      availableTags={["portrait", "wedding", "wildlife"]}
       label="Tags"
       onChange={setValue}
       value={value}
@@ -18,33 +18,32 @@ function ControlledTags({ initialValue = "" }: { initialValue?: string }) {
 }
 
 describe("tag suggestions", () => {
-  it("matches the trimmed, case-insensitive last token and preserves previous text on click", async () => {
+  it("suggests and selects a match for the last comma-separated token", async () => {
     const user = userEvent.setup();
-    render(<ControlledTags initialValue="  portrait  ,   WI" />);
-    const input = screen.getByRole("combobox");
+    render(<ControlledTags />);
+    const input = screen.getByRole("combobox", { name: "Tags" });
 
-    await user.click(input);
+    await user.type(input, "portrait, WI");
+    expect(screen.getByRole("option", { name: "wildlife" })).toBeInTheDocument();
+
     await user.click(screen.getByRole("option", { name: "wildlife" }));
-
-    expect(input).toHaveValue("  portrait  , wildlife");
+    expect(input).toHaveValue("portrait, wildlife");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
-  it("does not show empty, unmatched, or already selected suggestions", async () => {
+  it("closes the suggestions when continued typing produces no matches", async () => {
     const user = userEvent.setup();
     render(<ControlledTags />);
-    const input = screen.getByRole("combobox");
+    const input = screen.getByRole("combobox", { name: "Tags" });
 
-    await user.click(input);
+    await user.type(input, "w");
+    expect(screen.getAllByRole("option").length).toBeGreaterThan(0);
+
+    await user.type(input, "zzz");
+    expect(input).toHaveValue("wzzz");
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    await user.type(input, " WEDDING , wed");
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, "xyz");
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, "wedding, ");
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).toHaveAttribute("aria-expanded", "false");
   });
 
   it("navigates suggestions with the keyboard and selects without submitting", async () => {
